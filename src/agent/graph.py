@@ -5,6 +5,7 @@ Returns a predefined response. Replace logic and configuration as needed.
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Annotated, Optional
@@ -28,19 +29,21 @@ from agent.tools import _skill_loader
 
 load_dotenv()
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path.cwd()
 DEBUGGER_DIR = PROJECT_ROOT / "debugger"
-DEFAULT_THREAD_ID = "1"
-WORKDIR = Path.cwd() / "workspace"
+WORKDIR = PROJECT_ROOT / "workspace"
 
 os.environ["DEEPSEEK_API_KEY"] = os.getenv("DEEPSEEK_API_KEY")
 os.environ["TAVILY_API_KEY"] = os.getenv("TAVILY_API_KEY")
 
 def build_system_prompt() -> str:
-	return (
-		f"You are a agent at {WORKDIR}. Use tools to solve tasks.\n "
-		f"Skills:\n{_skill_loader().descriptions()}"
-	)
+    skill_loader = _skill_loader()
+    skill_runtime = skill_loader.ensure_runtime()
+    return (
+        f"You are a agent at {WORKDIR}. Use tools to solve tasks.\n "
+        f"Skills:\n{skill_loader.descriptions()}\n"
+        f"Skill runtime:\n{skill_runtime}"
+    )
 
 SYSTEM = build_system_prompt()
 
@@ -69,14 +72,39 @@ tools = [search_tool, human_assistance, *CUSTOM_TOOLS]
 llm_with_tools = llm.bind_tools(tools)
 
 
-def build_graph_config(thread_id: str = DEFAULT_THREAD_ID, **configurable: str) -> RunnableConfig:
+def _console_payload(value: object) -> object:
+    if isinstance(value, BaseMessage):
+        payload = {
+            "type": value.type,
+            "content": value.content,
+        }
+        tool_calls = getattr(value, "tool_calls", None)
+        if tool_calls:
+            payload["tool_calls"] = tool_calls
+        name = getattr(value, "name", None)
+        if name:
+            payload["name"] = name
+        return payload
+    if isinstance(value, list):
+        return [_console_payload(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _console_payload(item) for key, item in value.items()}
+    return value
+
+
+def _print_runtime_event(event_name: str, payload: object) -> None:
+    rendered = json.dumps(_console_payload(payload), ensure_ascii=False, default=str, indent=2)
+    print(f"[{event_name}]\n{rendered}", flush=True)
+
+
+def build_graph_config(thread_id: str, **configurable: str) -> RunnableConfig:
     return {"configurable": {"thread_id": thread_id, **configurable}}
 
 
 def _with_default_thread_id(config: RunnableConfig | None) -> RunnableConfig:
     runtime_config = dict(config or {})
     configurable = dict(runtime_config.get("configurable", {}))
-    configurable.setdefault("thread_id", DEFAULT_THREAD_ID)
+    configurable.setdefault("thread_id", 1)
     runtime_config["configurable"] = configurable
     return runtime_config
 
@@ -102,6 +130,7 @@ def _wrap_tool_call(request, execute):
         )
         raise
 
+    _print_runtime_event("tool result", result)
     log_interaction(
         debugger_dir=DEBUGGER_DIR,
         event_type="tool",
@@ -141,6 +170,7 @@ def call_model(state: State, config: Optional[RunnableConfig] = None) -> State:
         output_payload=response,
         config=runtime_config,
     )
+    _print_runtime_event("llm response", response)
     return {"messages": [response]}
 
 

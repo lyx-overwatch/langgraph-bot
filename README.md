@@ -49,6 +49,18 @@ python -m agent "今天北京天气怎么样？"
 
 Every LLM request/response pair and tool invocation is exported as a JSON file under the `debugger/` directory.
 
+## Skill Dependencies
+
+Local skills can declare runtime requirements in SKILL frontmatter:
+
+```yaml
+python_packages: ['reportlab', 'pymupdf']
+python_modules: ['reportlab', 'fitz']
+external_tools: ['pdftotext']
+```
+
+At startup, the agent checks these requirements, detects uv-managed projects via `uv.lock`, and prefers `uv pip install --python <current interpreter>` for missing Python packages. Non-uv projects fall back to `python -m pip`. The agent also adds an availability summary to the system prompt and `load_skill(...)` output. Set `AGENT_AUTO_INSTALL_SKILL_DEPS=0` to disable automatic installation.
+
 ## How to customize
 
 1. **Define runtime context**: Modify the `Context` class in the `graph.py` file to expose the arguments you want to configure per assistant. For example, in a chatbot application you may want to define a dynamic system prompt or LLM to use. For more information on runtime context in LangGraph, [see here](https://langchain-ai.github.io/langgraph/agents/context/?h=context#static-runtime-context).

@@ -35,7 +35,7 @@ def write_debugger_log(
         "error": str(error) if error is not None else None,
     }
     log_file = debugger_dir / (
-        f"{timestamp.strftime('%Y-%m-%d_%H-%M-%S')}_{thread_id}_{event_type}_{record['id']}.json"
+        f"{timestamp.strftime('%Y-%m-%d_%H-%M-%S')}_{event_type}_{thread_id}.json"
     )
     with log_file.open("w", encoding="utf-8") as file:
         json.dump(record, file, ensure_ascii=False, indent=2)

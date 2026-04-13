@@ -3,28 +3,21 @@ from __future__ import annotations
 import argparse
 from typing import cast
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import  HumanMessage
 from langgraph.types import Command, GraphOutput, Interrupt
 
-from agent.graph import DEFAULT_THREAD_ID, build_graph_config, graph
+from agent.graph import  build_graph_config, graph
 
 
-def _parse_args() -> argparse.Namespace:
+def _parse_args(thread_id:str) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the LangGraph agent from a script.")
     parser.add_argument("prompt", nargs="?", help="Optional single prompt to run once.")
     parser.add_argument(
         "--thread-id",
-        default=DEFAULT_THREAD_ID,
+        default=thread_id,
         help="Thread id used to persist conversation state.",
     )
     return parser.parse_args()
-
-
-def _last_ai_message(messages: list) -> AIMessage | None:
-    for message in reversed(messages):
-        if isinstance(message, AIMessage):
-            return message
-    return None
 
 
 def _format_interrupt(interrupt: Interrupt) -> str:
@@ -71,14 +64,12 @@ def _run_turn(user_input: str, thread_id: str) -> None:
                 )
             continue
 
-        assistant_message = _last_ai_message(state["messages"])
-        if assistant_message is not None:
-            print(f"Assistant: {assistant_message.text}")
         return
 
 
 def main() -> None:
-    args = _parse_args()
+    thread_id = 'cli-results-01'
+    args = _parse_args(thread_id)
 
     if args.prompt:
         _run_turn(args.prompt, args.thread_id)
