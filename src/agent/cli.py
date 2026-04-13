@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from typing import cast
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command, GraphOutput, Interrupt
@@ -38,26 +39,38 @@ def _resume_value(interrupt: Interrupt) -> dict[str, str]:
     return {"data": answer}
 
 
+def _unwrap_invoke_result(result: GraphOutput | dict) -> tuple[tuple[Interrupt, ...], dict]:
+    if isinstance(result, GraphOutput):
+        return result.interrupts, cast(dict, result.value)
+
+    interrupts = tuple(result.get("__interrupt__", ()))
+    if interrupts:
+        state = {key: value for key, value in result.items() if key != "__interrupt__"}
+        return interrupts, state
+
+    return (), result
+
+
 def _run_turn(user_input: str, thread_id: str) -> None:
     config = build_graph_config(thread_id=thread_id)
     payload: dict | Command = {"messages": [HumanMessage(content=user_input)]}
 
     while True:
-        result: GraphOutput = graph.invoke(payload, config=config, version="v2")
+        result = graph.invoke(payload, config=config)
+        interrupts, state = _unwrap_invoke_result(result)
 
-        if result.interrupts:
-            if len(result.interrupts) == 1:
-                payload = Command(resume=_resume_value(result.interrupts[0]))
+        if interrupts:
+            if len(interrupts) == 1:
+                payload = Command(resume=_resume_value(interrupts[0]))
             else:
                 payload = Command(
                     resume={
                         interrupt.id: _resume_value(interrupt)
-                        for interrupt in result.interrupts
+                        for interrupt in interrupts
                     }
                 )
             continue
 
-        state = result.value
         assistant_message = _last_ai_message(state["messages"])
         if assistant_message is not None:
             print(f"Assistant: {assistant_message.text}")
