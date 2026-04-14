@@ -5,7 +5,6 @@ Returns a predefined response. Replace logic and configuration as needed.
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 from typing import Annotated, Optional
@@ -17,6 +16,7 @@ from langchain_core.tools import tool
 from langchain_deepseek import ChatDeepSeek
 from langchain_tavily import TavilySearch
 from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.errors import GraphBubbleUp
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -101,34 +101,9 @@ def human_assistance(query: str) -> str:
     return human_response["data"]
 
 search_tool = TavilySearch(max_results=2)
-tools = [search_tool, human_assistance, *CUSTOM_TOOLS]
+tools = [human_assistance, *CUSTOM_TOOLS]
 
 llm_with_tools = llm.bind_tools(tools)
-
-
-def _console_payload(value: object) -> object:
-    if isinstance(value, BaseMessage):
-        payload = {
-            "type": value.type,
-            "content": value.content,
-        }
-        tool_calls = getattr(value, "tool_calls", None)
-        if tool_calls:
-            payload["tool_calls"] = tool_calls
-        name = getattr(value, "name", None)
-        if name:
-            payload["name"] = name
-        return payload
-    if isinstance(value, list):
-        return [_console_payload(item) for item in value]
-    if isinstance(value, dict):
-        return {key: _console_payload(item) for key, item in value.items()}
-    return value
-
-
-def _print_runtime_event(event_name: str, payload: object) -> None:
-    rendered = json.dumps(_console_payload(payload), ensure_ascii=False, default=str, indent=2)
-    print(f"[{event_name}]\n{rendered}", flush=True)
 
 
 def build_graph_config(thread_id: str, **configurable: str) -> RunnableConfig:
@@ -152,20 +127,14 @@ def _wrap_tool_call(request, execute):
 
     try:
         result = execute(request)
+    except GraphBubbleUp:
+        raise
     except Exception as error:
         result = ToolMessage(
             content=_format_runtime_error(error),
             name=tool_call.get("name"),
             tool_call_id=tool_call["id"],
             status="error",
-        )
-        _print_runtime_event(
-            "tool error",
-            {
-                "tool_call": tool_call,
-                "error": str(error),
-                "fallback": result,
-            },
         )
         log_interaction(
             debugger_dir=DEBUGGER_DIR,
@@ -179,7 +148,6 @@ def _wrap_tool_call(request, execute):
         )
         return result
 
-    _print_runtime_event("tool result", result)
     log_interaction(
         debugger_dir=DEBUGGER_DIR,
         event_type="tool",
@@ -203,13 +171,6 @@ def call_model(state: State, config: Optional[RunnableConfig] = None) -> State:
         fallback_message = AIMessage(
             content=_format_runtime_error(error, timeout_seconds=LLM_TIMEOUT_SECONDS)
         )
-        _print_runtime_event(
-            "llm error",
-            {
-                "error": str(error),
-                "fallback": fallback_message,
-            },
-        )
         log_interaction(
             debugger_dir=DEBUGGER_DIR,
             event_type="llm",
@@ -229,7 +190,6 @@ def call_model(state: State, config: Optional[RunnableConfig] = None) -> State:
         output_payload=response,
         config=runtime_config,
     )
-    _print_runtime_event("llm response", response)
     return {"messages": [response]}
 
 
