@@ -38,7 +38,7 @@ def bash_tool(command: str, timeout: int = 30) -> str:
 
 @tool("read_file")
 def read_file_tool(path: str, limit: int | None = None) -> str:
-	"""Read a small UTF-8 text file from the workspace. Use this before editing and keep paths inside the workspace."""
+	"""Read a small text file from the workspace with encoding fallback. Use this before editing and keep paths inside the workspace."""
 	return run_read(path=path, limit=limit)
 
 

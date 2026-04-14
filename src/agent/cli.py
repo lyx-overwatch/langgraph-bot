@@ -49,7 +49,15 @@ def _run_turn(user_input: str, thread_id: str) -> None:
     payload: dict | Command = {"messages": [HumanMessage(content=user_input)]}
 
     while True:
-        result = graph.invoke(payload, config=config)
+        try:
+            result = graph.invoke(payload, config=config)
+        except KeyboardInterrupt:
+            print("\n[cancelled] Interrupted by user.", flush=True)
+            return
+        except Exception as error:
+            print(f"[runtime error] {type(error).__name__}: {error}", flush=True)
+            return
+
         interrupts, state = _unwrap_invoke_result(result)
 
         if interrupts:
