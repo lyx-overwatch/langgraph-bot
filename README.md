@@ -49,6 +49,12 @@ python -m agent "今天北京天气怎么样？"
 
 Every LLM request/response pair and tool invocation is exported as a JSON file under the `debugger/` directory.
 
+If you need the PDF skill toolchain locally, install the dedicated dependency group:
+
+```bash
+uv sync --group pdf
+```
+
 ## Skill Dependencies
 
 Local skills can declare runtime requirements in SKILL frontmatter:

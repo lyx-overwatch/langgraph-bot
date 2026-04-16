@@ -7,14 +7,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional
 
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from langchain_deepseek import ChatDeepSeek
-from langchain_tavily import TavilySearch
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.errors import GraphBubbleUp
 from langgraph.graph import END, START, StateGraph
@@ -67,7 +66,6 @@ def _format_runtime_error(error: Exception, *, timeout_seconds: int | None = Non
 
 
 _set_optional_env("DEEPSEEK_API_KEY")
-_set_optional_env("TAVILY_API_KEY")
 
 def build_system_prompt() -> str:
     skill_loader = _skill_loader()
@@ -76,12 +74,14 @@ def build_system_prompt() -> str:
         "\n"
         "## Working Priority\n"
         "1. **Web search first**: before answering any factual, up-to-date, or "
-        "otherwise unknown question, use `tavily_search` to search the internet. "
+        "otherwise unknown question, use `zhipu_web_search` to search the internet. "
         "Do NOT guess or rely on training data alone.\n"
         "2. **Tools**: use `bash`, `read_file`, `write_file`, `edit_file` to "
         "inspect and modify the workspace.\n"
         "3. **Skills**: if a skill matches the user's request, call "
-        "`load_skill(<name>)` to load its guide and follow it. "
+        "`load_skill(<name>)` to load its guide and follow it as a mandatory workflow. "
+        "When a loaded skill contains constraints, prohibitions, checklists, or cleanup "
+        "steps, treat them as hard requirements rather than optional advice. "
         "Skill content is preprocessed automatically (e.g. CJK font handling "
         "for PDF generation).\n"
         "\n"
@@ -112,7 +112,6 @@ def human_assistance(query: str) -> str:
     human_response = interrupt({"query": query})
     return human_response["data"]
 
-search_tool = TavilySearch(max_results=2)
 tools = [human_assistance, *CUSTOM_TOOLS]
 
 llm_with_tools = llm.bind_tools(tools)
@@ -122,7 +121,7 @@ def build_graph_config(thread_id: str, **configurable: str) -> RunnableConfig:
     return {"configurable": {"thread_id": thread_id, **configurable}}
 
 
-def _with_default_thread_id(config: RunnableConfig | None) -> RunnableConfig:
+def _with_default_thread_id(config: Optional[RunnableConfig]) -> RunnableConfig:
     runtime_config = dict(config or {})
     configurable = dict(runtime_config.get("configurable", {}))
     configurable.setdefault("thread_id", 1)
@@ -172,7 +171,7 @@ def _wrap_tool_call(request, execute):
     return result
 
 
-def call_model(state: State, config: RunnableConfig | None = None) -> State:
+def call_model(state: State, config: Optional[RunnableConfig] = None) -> State:
     runtime_config = _with_default_thread_id(config)
     system_prompt = SYSTEM
     messages = [SystemMessage(content=system_prompt), *state["messages"]]

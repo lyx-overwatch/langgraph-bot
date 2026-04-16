@@ -12,6 +12,7 @@ from agent.tools.file import WORKDIR, run_edit, run_read, run_write
 # Import submodules to trigger @register decorators on startup.
 from agent.tools.preprocessors import pdf_preprocessor  # noqa: F401
 from agent.tools.skills import SkillLoader
+from agent.tools.web_search import zhipu_web_search
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 AGENT_ROOT = Path(__file__).resolve().parents[1]
@@ -75,6 +76,7 @@ CUSTOM_TOOLS = [
 	write_file_tool,
 	edit_file_tool,
 	load_skill_tool,
+	zhipu_web_search,
 ]
 
 
