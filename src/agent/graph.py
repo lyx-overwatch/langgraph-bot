@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
@@ -24,8 +24,7 @@ from langgraph.types import interrupt
 from typing_extensions import TypedDict
 
 from agent.debugger import write_interaction_log as log_interaction
-from agent.tools import CUSTOM_TOOLS
-from agent.tools import _skill_loader
+from agent.tools import CUSTOM_TOOLS, _skill_loader
 
 load_dotenv()
 
@@ -73,8 +72,21 @@ _set_optional_env("TAVILY_API_KEY")
 def build_system_prompt() -> str:
     skill_loader = _skill_loader()
     return (
-        f"You are a agent at {WORKDIR}. Use tools to solve tasks.\n "
+        f"You are a agent at {WORKDIR}.\n"
+        "\n"
+        "## Working Priority\n"
+        "1. **Web search first**: before answering any factual, up-to-date, or "
+        "otherwise unknown question, use `tavily_search` to search the internet. "
+        "Do NOT guess or rely on training data alone.\n"
+        "2. **Tools**: use `bash`, `read_file`, `write_file`, `edit_file` to "
+        "inspect and modify the workspace.\n"
+        "3. **Skills**: if a skill matches the user's request, call "
+        "`load_skill(<name>)` to load its guide and follow it. "
+        "Skill content is preprocessed automatically (e.g. CJK font handling "
+        "for PDF generation).\n"
+        "\n"
         f"Skills:\n{skill_loader.descriptions()}"
+        "\n"
     )
 
 SYSTEM = build_system_prompt()
@@ -160,7 +172,7 @@ def _wrap_tool_call(request, execute):
     return result
 
 
-def call_model(state: State, config: Optional[RunnableConfig] = None) -> State:
+def call_model(state: State, config: RunnableConfig | None = None) -> State:
     runtime_config = _with_default_thread_id(config)
     system_prompt = SYSTEM
     messages = [SystemMessage(content=system_prompt), *state["messages"]]

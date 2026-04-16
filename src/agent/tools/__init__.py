@@ -8,6 +8,9 @@ from langchain_core.tools import tool
 
 from agent.tools.bash import run_bash_command
 from agent.tools.file import WORKDIR, run_edit, run_read, run_write
+
+# Import submodules to trigger @register decorators on startup.
+from agent.tools.preprocessors import pdf_preprocessor  # noqa: F401
 from agent.tools.skills import SkillLoader
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -56,9 +59,14 @@ def edit_file_tool(path: str, old_text: str, new_text: str) -> str:
 
 
 @tool("load_skill")
-def load_skill_tool(name: str) -> str:
-	"""Load one local skill by exact name after checking list_skills. Returns the SKILL.md content wrapped in a skill tag."""
-	return _skill_loader().load(name)
+def load_skill_tool(name: str, task_hint: str | None = None) -> str:
+	"""Load one local skill by exact name after checking list_skills.
+
+	Returns the SKILL.md content wrapped in a skill tag. The content is
+	automatically preprocessed (e.g. CJK font instructions for the pdf
+	skill) before being returned.
+	"""
+	return _skill_loader().load(name, workspace=WORKDIR, task_hint=task_hint)
 
 
 CUSTOM_TOOLS = [

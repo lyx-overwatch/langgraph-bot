@@ -1,6 +1,7 @@
+import re
 from pathlib import Path
 from typing import Any
-import re
+
 
 class SkillLoader:
 	def __init__(self, skills_dir: Path):
@@ -28,11 +29,15 @@ class SkillLoader:
 			for n, s in self.skills.items()
 		)
 
-	def load(self, name: str) -> str:
+	def load(self, name: str, *, workspace: Path | None = None, task_hint: str | None = None) -> str:
 		skill = self.skills.get(name)
 		if not skill:
 			return (
 				f"Error: Unknown skill '{name}'. "
 				f"Available: {', '.join(self.skills.keys())}"
 			)
-		return f"<skill name=\"{name}\">\n{skill['body']}\n</skill>"
+		# Import here so preprocessors are lazily registered (avoids circular imports).
+		from agent.tools.preprocessors.registry import run_preprocessors
+
+		body = run_preprocessors(name, skill["body"], workspace=workspace, task_hint=task_hint)
+		return f"<skill name=\"{name}\">\n{body}\n</skill>"
