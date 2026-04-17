@@ -33,6 +33,15 @@ def _build_cjk_notice() -> str:
     """Markdown block injected at the top of the skill body."""
     return """
 
+## Final Deliverable and Source-of-Truth Rules (Mandatory)
+
+- Unless the user explicitly asks to keep helper files, produce exactly one final PDF deliverable.
+- If you extract raw PDF text to `.txt` and also create a Markdown summary `.md`, the `.txt` file is the source of truth for final PDF content selection and wording verification.
+- Do not typeset Markdown syntax directly into the final PDF. Remove heading markers (`#`), bullet markers (`-`, `*`), code fences, and emphasis markers (`**`) before rendering.
+- A Markdown file may be used as an intermediate planning or summarization artifact, but it must not remain in the workspace after a successful build unless the user asked to keep it.
+- If both `pdf_content.txt` and `pdf_summary.md` exist, use `pdf_content.txt` to verify the final wording and delete `pdf_summary.md` after the final PDF is produced unless the user requested the markdown file.
+- If a temporary extraction or helper script is created solely to build the PDF, delete it after the final PDF is successfully generated unless the user requested the source file.
+
 ## \U0001F4D8 CJK / Chinese Text Handling (Important)
 
 When creating or modifying a PDF that will contain **any Chinese characters**
@@ -185,6 +194,9 @@ with TemporaryDirectory(prefix="pdf-build-") as temp_dir:
 
 ### Final checklist before you finish
 
+- Exactly one final PDF deliverable remains unless the user requested more
+- If a `.txt` extraction exists, it was used as the source of truth for final text selection
+- No Markdown markers (`#`, `-`, `*`, `**`, ``` ) appear in the final PDF content
 - Chinese text present -> CJK font registered
 - Chinese styles and canvas calls use that font
 - No Helvetica/Times/Courier on Chinese content
