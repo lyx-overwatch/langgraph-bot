@@ -8,15 +8,12 @@ from langchain_core.tools import tool
 
 from agent.tools.bash import run_bash_command
 from agent.tools.file import WORKDIR, run_edit, run_read, run_write
-
-# Import submodules to trigger @register decorators on startup.
-from agent.tools.preprocessors import pdf_preprocessor  # noqa: F401
 from agent.tools.skills import SkillLoader
 from agent.tools.web_search import zhipu_web_search
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 AGENT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SKILLS_DIR_NAME = ".skills"
+DEFAULT_SKILLS_DIR_NAME = "skills"
 
 
 def _resolve_skills_dir() -> Path:

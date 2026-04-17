@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-lang-bot = "agent.cli:main"
+lang = "agent.cli:main"
 
 
 [project.optional-dependencies]

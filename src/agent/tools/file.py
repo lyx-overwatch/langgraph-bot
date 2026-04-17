@@ -2,8 +2,8 @@
 from pathlib import Path
 
 WORKDIR = Path.cwd() / "workspace"
-MAX_FILE_SIZE_BYTES = 200_000
-MAX_RETURN_CHARS = 50_000
+MAX_FILE_SIZE_BYTES = 1_000_000
+MAX_RETURN_CHARS = 200_000
 BLOCKED_PATH_PARTS = {
 	".git",
 	".venv",
